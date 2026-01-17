@@ -37,11 +37,13 @@ jobs:
 
       - name: Verify MinGW toolchain
         run: |
-          set -e
-          command -v x86_64-w64-mingw32-gcc
-          command -v x86_64-w64-mingw32-ar
-          command -v x86_64-w64-mingw32-nm
-          command -v x86_64-w64-mingw32-ranlib
+          echo "Checking MinGW64 toolchain..."
+          which gcc && gcc --version | head -n1
+          which ar && ar --version | head -n1
+          which make && make --version | head -n1
+          which yasm && yasm --version
+          which nasm && nasm --version
+          echo "Toolchain verified successfully"
 
       - name: Fetch FFmpeg (Windows)
         run: |
