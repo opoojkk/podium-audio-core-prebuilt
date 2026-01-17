@@ -27,9 +27,19 @@ jobs:
             make
             git
             mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-yasm
             mingw-w64-x86_64-nasm
+
+      - name: Verify MinGW toolchain
+        shell: msys2 {0}
+        run: |
+          set -e
+          command -v x86_64-w64-mingw32-gcc
+          command -v x86_64-w64-mingw32-ar
+          command -v x86_64-w64-mingw32-nm
+          command -v x86_64-w64-mingw32-ranlib
 
       - name: Fetch FFmpeg (Windows)
         shell: msys2 {0}

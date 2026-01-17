@@ -18,8 +18,22 @@ PREFIX="$OUT_DIR/$TARGET_DIR"
 echo "[Sanity Check] toolchain"
 
 command -v x86_64-w64-mingw32-gcc >/dev/null
+command -v x86_64-w64-mingw32-ar >/dev/null
+command -v x86_64-w64-mingw32-nm >/dev/null
+command -v x86_64-w64-mingw32-ranlib >/dev/null
 command -v make >/dev/null
 command -v pkg-config >/dev/null
+
+echo "[Sanity Check] toolchain OK"
+
+# ------------------------------------------------------------------------------
+# Export binutils explicitly (防止 PATH 异常)
+# ------------------------------------------------------------------------------
+export CC=x86_64-w64-mingw32-gcc
+export AR=x86_64-w64-mingw32-ar
+export NM="x86_64-w64-mingw32-nm -g"
+export RANLIB=x86_64-w64-mingw32-ranlib
+export STRIP=x86_64-w64-mingw32-strip
 
 # ------------------------------------------------------------------------------
 # Prepare directories
