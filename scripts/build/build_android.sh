@@ -14,29 +14,28 @@ ANDROID_NDK="${ANDROID_NDK:-${ANDROID_NDK_HOME:-}}"
 
 API=24
 
-# ---------- Resolve NDK toolchain host tag ----------
-HOST_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-case "$HOST_OS" in
-  linux)
-    HOST_TAG="linux-x64"
-    ;;
-  darwin)
-    HOST_TAG="darwin-x64"
-    ;;
-  *)
-    echo "Unsupported host OS: $HOST_OS"
-    exit 1
-    ;;
-esac
+# ---------- Resolve NDK toolchain ----------
+PREBUILT_DIR="$ANDROID_NDK/toolchains/llvm/prebuilt"
 
-TOOLCHAIN="$ANDROID_NDK/toolchains/llvm/prebuilt/$HOST_TAG"
-
-if [ ! -d "$TOOLCHAIN" ]; then
-  echo "Invalid NDK toolchain path: $TOOLCHAIN"
-  echo "Available toolchains:"
-  ls "$ANDROID_NDK/toolchains/llvm/prebuilt"
+if [ ! -d "$PREBUILT_DIR" ]; then
+  echo "Invalid NDK llvm prebuilt dir: $PREBUILT_DIR"
   exit 1
 fi
+
+# Prefer linux-x86_64, fallback to linux-x64
+if [ -d "$PREBUILT_DIR/linux-x86_64" ]; then
+  HOST_TAG="linux-x86_64"
+elif [ -d "$PREBUILT_DIR/linux-x64" ]; then
+  HOST_TAG="linux-x64"
+else
+  echo "No supported Linux toolchain found in:"
+  ls "$PREBUILT_DIR"
+  exit 1
+fi
+
+TOOLCHAIN="$PREBUILT_DIR/$HOST_TAG"
+
+echo "Using NDK toolchain: $TOOLCHAIN"
 
 # ---------- Toolchain ----------
 export PATH="$TOOLCHAIN/bin:$PATH"
