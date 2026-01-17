@@ -4,7 +4,7 @@ set -e
 source "$(dirname "$0")/env.sh"
 
 PLATFORM=android
-ARCH=arm64-v8a
+ARCH=armv8-a
 TARGET_DIR="$PLATFORM/$ARCH"
 PREFIX="$OUT_DIR/$TARGET_DIR"
 
