@@ -22,7 +22,6 @@ if [ ! -d "$PREBUILT_DIR" ]; then
   exit 1
 fi
 
-# Prefer linux-x86_64, fallback to linux-x64
 if [ -d "$PREBUILT_DIR/linux-x86_64" ]; then
   HOST_TAG="linux-x86_64"
 elif [ -d "$PREBUILT_DIR/linux-x64" ]; then
@@ -45,6 +44,8 @@ export AR=llvm-ar
 export NM=llvm-nm
 export STRIP=llvm-strip
 
+SYSROOT="$TOOLCHAIN/sysroot"
+
 # ---------- Build dirs ----------
 mkdir -p "$BUILD_DIR/$TARGET_DIR"
 mkdir -p "$PREFIX"
@@ -59,7 +60,9 @@ cd "$SRC_DIR"
   --cpu=armv8-a \
   --enable-cross-compile \
   --cross-prefix=aarch64-linux-android- \
-  --sysroot="$TOOLCHAIN/sysroot" \
+  --sysroot="$SYSROOT" \
+  --extra-cflags="--sysroot=$SYSROOT" \
+  --extra-ldflags="--sysroot=$SYSROOT" \
   --enable-shared \
   --disable-static \
   --enable-pic \
