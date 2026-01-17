@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ---------- 修复脚本权限（关键） ----------
+      # ---------- 修复脚本执行权限 ----------
       - name: Make build scripts executable
         shell: bash
         run: |
@@ -73,9 +73,8 @@ jobs:
       - name: Build FFmpeg (Android)
         if: matrix.platform == 'android'
         shell: bash
-        env:
-          ANDROID_NDK: ${{ env.ANDROID_NDK_HOME }}
         run: |
+          export ANDROID_NDK="$ANDROID_NDK_HOME"
           scripts/build/build_android.sh
 
       # ---------- Package ----------
@@ -84,14 +83,14 @@ jobs:
         run: |
           scripts/build/package.sh
 
-      # ---------- Upload ----------
+      # ---------- Upload Artifacts ----------
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.platform }}-${{ matrix.arch }}
           path: output/*.tar.gz
 
-      # ---------- Release（避免重复） ----------
+      # ---------- Create Release（只执行一次） ----------
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'android'
         uses: softprops/action-gh-release@v1
