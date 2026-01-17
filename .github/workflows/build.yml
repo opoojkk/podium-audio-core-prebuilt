@@ -1,0 +1,82 @@
+name: Build Podium Audio Core Prebuilt
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "ffmpeg-*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            shell: msys2
+            script: build_windows.sh
+
+          - os: ubuntu-latest
+            platform: android
+            arch: arm64-v8a
+            shell: bash
+            script: build_android.sh
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- Windows ----------
+      - name: Setup MSYS2
+        if: matrix.shell == 'msys2'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >
+            base-devel
+            mingw-w64-x86_64-toolchain
+            yasm
+            nasm
+            git
+
+      # ---------- Android ----------
+      - name: Setup Android NDK
+        if: matrix.platform == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
+
+      - name: Fetch FFmpeg
+        shell: bash
+        run: |
+          scripts/build/fetch_ffmpeg.sh
+
+      - name: Build FFmpeg
+        shell: bash
+        env:
+          ANDROID_NDK: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          scripts/build/${{ matrix.script }}
+
+      - name: Package
+        shell: bash
+        run: |
+          scripts/build/package.sh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.platform }}-${{ matrix.arch }}
+          path: output/*.tar.gz
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            output/*.tar.gz
+            output/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
