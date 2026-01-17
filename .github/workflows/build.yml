@@ -13,6 +13,9 @@ jobs:
   build-windows:
     name: Build FFmpeg (Windows x64)
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +25,7 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: >
+          install: >-
             base-devel
             make
             git
@@ -33,7 +36,6 @@ jobs:
             mingw-w64-x86_64-nasm
 
       - name: Verify MinGW toolchain
-        shell: msys2 -mingw64 {0}
         run: |
           set -e
           command -v x86_64-w64-mingw32-gcc
@@ -42,20 +44,15 @@ jobs:
           command -v x86_64-w64-mingw32-ranlib
 
       - name: Fetch FFmpeg (Windows)
-        shell: msys2 -mingw64 {0}
         run: |
           chmod +x scripts/build/*.sh
           scripts/build/fetch_ffmpeg.sh
 
       - name: Build FFmpeg (Windows)
-        shell: msys2 -mingw64 {0}
-        run: |
-          scripts/build/build_windows.sh
+        run: scripts/build/build_windows.sh
 
       - name: Package (Windows)
-        shell: msys2 -mingw64 {0}
-        run: |
-          scripts/build/package.sh windows x64
+        run: scripts/build/package.sh windows x64
 
       - name: Upload Artifacts (Windows)
         uses: actions/upload-artifact@v4
