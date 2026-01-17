@@ -60,6 +60,7 @@ cd "$SRC_DIR"
   --enable-shared \
   --disable-static \
   --enable-pic \
+  --disable-stripping \
   "${COMMON_CONFIG[@]}" \
 || {
   echo ""
