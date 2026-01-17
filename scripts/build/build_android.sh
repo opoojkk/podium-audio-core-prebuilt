@@ -37,7 +37,7 @@ SYSROOT="$TOOLCHAIN/sysroot"
 
 echo "Using NDK toolchain: $TOOLCHAIN"
 
-# ---------- Toolchain (explicit full paths) ----------
+# ---------- Toolchain (use NDK wrapper explicitly) ----------
 export PATH="$TOOLCHAIN/bin:$PATH"
 export CC="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
 export CXX="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang++"
@@ -56,7 +56,6 @@ cd "$SRC_DIR"
   --prefix="$PREFIX" \
   --target-os=android \
   --arch=aarch64 \
-  --cpu=armv8-a \
   --enable-cross-compile \
   --sysroot="$SYSROOT" \
   --extra-cflags="--sysroot=$SYSROOT" \
@@ -68,11 +67,9 @@ cd "$SRC_DIR"
 || {
   echo ""
   echo "========== FFmpeg configure failed =========="
-  echo "NDK: $ANDROID_NDK"
-  echo "TOOLCHAIN: $TOOLCHAIN"
   echo "CC: $CC"
   echo ""
-  echo "========== ffbuild/config.log (grep error|clang|ld) =========="
+  echo "========== ffbuild/config.log (errors) =========="
   grep -nE "error:|fatal|clang:|ld(\.lld)?:|cannot find|undefined reference" ffbuild/config.log || true
   echo ""
   echo "========== ffbuild/config.log (last 200 lines) =========="
