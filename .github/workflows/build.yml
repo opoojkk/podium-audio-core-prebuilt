@@ -18,49 +18,58 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Setup MSYS2 (MINGW64)
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            base-devel
-            make
-            git
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-binutils
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-yasm
-            mingw-w64-x86_64-nasm
+    - name: Setup MSYS2 (MINGW64)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          base-devel
+          make
+          git
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-binutils
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-yasm
+          mingw-w64-x86_64-nasm
 
-      - name: Verify MinGW toolchain
-        run: |
-          echo "Checking MinGW64 toolchain..."
-          which gcc && gcc --version | head -n1
-          which ar && ar --version | head -n1
-          which make && make --version | head -n1
-          which yasm && yasm --version
-          which nasm && nasm --version
-          echo "Toolchain verified successfully"
+    - name: Setup Toolchain Aliases
+      run: |
+        cd /mingw64/bin
+        
+        # 创建交叉编译风格的符号链接
+        ln -sf gcc.exe x86_64-w64-mingw32-gcc.exe
+        ln -sf g++.exe x86_64-w64-mingw32-g++.exe
+        ln -sf ar.exe x86_64-w64-mingw32-ar.exe
+        ln -sf nm.exe x86_64-w64-mingw32-nm.exe
+        ln -sf ranlib.exe x86_64-w64-mingw32-ranlib.exe
+        ln -sf strip.exe x86_64-w64-mingw32-strip.exe
+        ln -sf windres.exe x86_64-w64-mingw32-windres.exe
+        
+        # 验证链接成功
+        echo "=== Verifying toolchain aliases ==="
+        x86_64-w64-mingw32-gcc --version | head -n1
+        x86_64-w64-mingw32-ar --version | head -n1
+        echo "Toolchain aliases created successfully"
 
-      - name: Fetch FFmpeg (Windows)
-        run: |
-          chmod +x scripts/build/*.sh
-          scripts/build/fetch_ffmpeg.sh
+    - name: Fetch FFmpeg (Windows)
+      run: |
+        chmod +x scripts/build/*.sh
+        scripts/build/fetch_ffmpeg.sh
 
-      - name: Build FFmpeg (Windows)
-        run: scripts/build/build_windows.sh
+    - name: Build FFmpeg (Windows)
+      run: scripts/build/build_windows.sh
 
-      - name: Package (Windows)
-        run: scripts/build/package.sh windows x64
+    - name: Package (Windows)
+      run: scripts/build/package.sh windows x64
 
-      - name: Upload Artifacts (Windows)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-${{ github.ref_name }}-windows-x64
-          path: output/*.tar.gz
+    - name: Upload Artifacts (Windows)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ffmpeg-${{ github.ref_name }}-windows-x64
+        path: output/*.tar.gz
 
 
   # ==============================
