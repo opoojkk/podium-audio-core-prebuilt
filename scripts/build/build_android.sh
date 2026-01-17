@@ -4,7 +4,7 @@ set -e
 source "$(dirname "$0")/env.sh"
 
 PLATFORM=android
-ARCH=armv8-a
+ARCH=arm64-v8a
 TARGET_DIR="$PLATFORM/$ARCH"
 PREFIX="$OUT_DIR/$TARGET_DIR"
 
@@ -33,6 +33,7 @@ else
 fi
 
 TOOLCHAIN="$PREBUILT_DIR/$HOST_TAG"
+SYSROOT="$TOOLCHAIN/sysroot"
 
 echo "Using NDK toolchain: $TOOLCHAIN"
 
@@ -43,8 +44,6 @@ export CXX="aarch64-linux-android${API}-clang++"
 export AR=llvm-ar
 export NM=llvm-nm
 export STRIP=llvm-strip
-
-SYSROOT="$TOOLCHAIN/sysroot"
 
 # ---------- Build dirs ----------
 mkdir -p "$BUILD_DIR/$TARGET_DIR"
@@ -66,7 +65,15 @@ cd "$SRC_DIR"
   --enable-shared \
   --disable-static \
   --enable-pic \
-  "${COMMON_CONFIG[@]}"
+  "${COMMON_CONFIG[@]}" \
+|| {
+  echo ""
+  echo "========== FFmpeg configure failed =========="
+  echo "========== ffbuild/config.log =========="
+  cat ffbuild/config.log
+  echo "============================================"
+  exit 1
+}
 
 # ---------- Build ----------
 make -j"$(getconf _NPROCESSORS_ONLN)"
