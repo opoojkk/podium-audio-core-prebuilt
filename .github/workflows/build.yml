@@ -33,7 +33,7 @@ jobs:
             mingw-w64-x86_64-nasm
 
       - name: Verify MinGW toolchain
-        shell: msys2 {0}
+        shell: msys2 -mingw64 {0}
         run: |
           set -e
           command -v x86_64-w64-mingw32-gcc
@@ -42,18 +42,18 @@ jobs:
           command -v x86_64-w64-mingw32-ranlib
 
       - name: Fetch FFmpeg (Windows)
-        shell: msys2 {0}
+        shell: msys2 -mingw64 {0}
         run: |
           chmod +x scripts/build/*.sh
           scripts/build/fetch_ffmpeg.sh
 
       - name: Build FFmpeg (Windows)
-        shell: msys2 {0}
+        shell: msys2 -mingw64 {0}
         run: |
           scripts/build/build_windows.sh
 
       - name: Package (Windows)
-        shell: msys2 {0}
+        shell: msys2 -mingw64 {0}
         run: |
           scripts/build/package.sh windows x64
 
