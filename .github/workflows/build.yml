@@ -28,6 +28,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ---------- 修复脚本权限（关键） ----------
+      - name: Make build scripts executable
+        shell: bash
+        run: |
+          chmod +x scripts/build/*.sh
+
       # ---------- Windows ----------
       - name: Setup MSYS2
         if: matrix.shell == 'msys2'
@@ -50,31 +56,44 @@ jobs:
         with:
           ndk-version: r25c
 
+      # ---------- Fetch FFmpeg ----------
       - name: Fetch FFmpeg
         shell: bash
         run: |
           scripts/build/fetch_ffmpeg.sh
 
-      - name: Build FFmpeg
+      # ---------- Build FFmpeg (Windows) ----------
+      - name: Build FFmpeg (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          scripts/build/build_windows.sh
+
+      # ---------- Build FFmpeg (Android) ----------
+      - name: Build FFmpeg (Android)
+        if: matrix.platform == 'android'
         shell: bash
         env:
           ANDROID_NDK: ${{ env.ANDROID_NDK_HOME }}
         run: |
-          scripts/build/${{ matrix.script }}
+          scripts/build/build_android.sh
 
+      # ---------- Package ----------
       - name: Package
         shell: bash
         run: |
           scripts/build/package.sh
 
+      # ---------- Upload ----------
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.platform }}-${{ matrix.arch }}
           path: output/*.tar.gz
 
+      # ---------- Release（避免重复） ----------
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'android'
         uses: softprops/action-gh-release@v1
         with:
           files: |
