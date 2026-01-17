@@ -7,96 +7,124 @@ on:
       - "ffmpeg-*"
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            arch: x64
-            shell: msys2
-            script: build_windows.sh
-
-          - os: ubuntu-latest
-            platform: android
-            arch: arm64-v8a
-            shell: bash
-            script: build_android.sh
-
-    runs-on: ${{ matrix.os }}
+  # ==============================
+  # Windows (MSYS2 / MINGW64)
+  # ==============================
+  build-windows:
+    name: Build FFmpeg (Windows x64)
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # ---------- 修复脚本执行权限 ----------
-      - name: Make build scripts executable
-        shell: bash
-        run: |
-          chmod +x scripts/build/*.sh
-
-      # ---------- Windows ----------
-      - name: Setup MSYS2
-        if: matrix.shell == 'msys2'
+      - name: Setup MSYS2 (MINGW64)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
           install: >
+            base-devel
+            make
+            git
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-make
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-yasm
             mingw-w64-x86_64-nasm
-            git
 
-      # ---------- Android ----------
-      - name: Setup Android NDK
-        if: matrix.platform == 'android'
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r25c
-
-      # ---------- Fetch FFmpeg ----------
-      - name: Fetch FFmpeg
-        shell: bash
+      - name: Fetch FFmpeg (Windows)
+        shell: msys2 {0}
         run: |
+          chmod +x scripts/build/*.sh
           scripts/build/fetch_ffmpeg.sh
 
-      # ---------- Build FFmpeg (Windows) ----------
       - name: Build FFmpeg (Windows)
-        if: matrix.platform == 'windows'
         shell: msys2 {0}
         run: |
           scripts/build/build_windows.sh
 
-      # ---------- Build FFmpeg (Android) ----------
-      - name: Build FFmpeg (Android)
-        if: matrix.platform == 'android'
-        shell: bash
+      - name: Package (Windows)
+        shell: msys2 {0}
         run: |
-          export ANDROID_NDK="$ANDROID_NDK_HOME"
-          scripts/build/build_android.sh
+          scripts/build/package.sh windows x64
 
-      # ---------- Package ----------
-      - name: Package
-        shell: bash
-        run: |
-          scripts/build/package.sh
-
-      # ---------- Upload Artifacts ----------
-      - name: Upload Artifacts
+      - name: Upload Artifacts (Windows)
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-${{ matrix.platform }}-${{ matrix.arch }}
+          name: ffmpeg-${{ github.ref_name }}-windows-x64
           path: output/*.tar.gz
 
-      # ---------- Create Release（只执行一次） ----------
+
+  # ==============================
+  # Android (NDK r25c / arm64-v8a)
+  # ==============================
+  build-android:
+    name: Build FFmpeg (Android arm64-v8a)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
+
+      - name: Fetch FFmpeg (Android)
+        shell: bash
+        run: |
+          chmod +x scripts/build/*.sh
+          scripts/build/fetch_ffmpeg.sh
+
+      - name: Build FFmpeg (Android)
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          scripts/build/build_android.sh arm64-v8a
+
+      - name: Package (Android)
+        shell: bash
+        run: |
+          scripts/build/package.sh android arm64-v8a
+
+      - name: Upload Artifacts (Android)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ github.ref_name }}-android-arm64-v8a
+          path: output/*.tar.gz
+
+
+  # ==============================
+  # Release (ONLY ONCE)
+  # ==============================
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build-windows
+      - build-android
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd artifacts
+          find . -name "*.tar.gz" -exec sha256sum {} \; > checksums.txt
+
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'android'
         uses: softprops/action-gh-release@v1
         with:
+          name: ${{ github.ref_name }}
           files: |
-            output/*.tar.gz
-            output/checksums.txt
+            artifacts/**/*.tar.gz
+            artifacts/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
