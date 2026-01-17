@@ -33,14 +33,12 @@ SYSROOT="$TOOLCHAIN/sysroot"
 echo "Using NDK toolchain: $TOOLCHAIN"
 
 # ---------- Force NDK clang wrapper ----------
+export PATH="$TOOLCHAIN/bin:$PATH"
 export CC="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
 export CXX="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang++"
 export AR="$TOOLCHAIN/bin/llvm-ar"
 export NM="$TOOLCHAIN/bin/llvm-nm"
 export STRIP="$TOOLCHAIN/bin/llvm-strip"
-
-# Put wrapper first, but DO NOT rely on bare clang
-export PATH="$TOOLCHAIN/bin:$PATH"
 
 # ---------- Build dirs ----------
 mkdir -p "$BUILD_DIR/$TARGET_DIR"
@@ -48,11 +46,12 @@ mkdir -p "$PREFIX"
 
 cd "$SRC_DIR"
 
-# ---------- Configure (Android-correct form) ----------
+# ---------- Configure (FINAL correct form) ----------
 ./configure \
   --prefix="$PREFIX" \
   --target-os=android \
   --arch=aarch64 \
+  --enable-cross-compile \
   --cc="$CC" \
   --cxx="$CXX" \
   --sysroot="$SYSROOT" \
@@ -69,7 +68,7 @@ cd "$SRC_DIR"
   echo "SYSROOT: $SYSROOT"
   echo ""
   echo "========== ffbuild/config.log (errors) =========="
-  grep -nE "error:|fatal|clang:|ld(\.lld)?:|cannot open|cannot find" ffbuild/config.log || true
+  grep -nE "Exec format error|error:|fatal|clang:|ld(\.lld)?:|cannot open|cannot find" ffbuild/config.log || true
   echo ""
   echo "========== ffbuild/config.log (last 200 lines) =========="
   tail -n 200 ffbuild/config.log
