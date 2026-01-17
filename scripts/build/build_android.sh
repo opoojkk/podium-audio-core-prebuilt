@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+
 source "$(dirname "$0")/env.sh"
 
 PLATFORM=android
@@ -13,8 +14,8 @@ API=24
 TOOLCHAIN="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64"
 
 export PATH="$TOOLCHAIN/bin:$PATH"
-export CC=aarch64-linux-android$API-clang
-export CXX=aarch64-linux-android$API-clang++
+export CC="aarch64-linux-android${API}-clang"
+export CXX="aarch64-linux-android${API}-clang++"
 export AR=llvm-ar
 export NM=llvm-nm
 export STRIP=llvm-strip
@@ -29,12 +30,14 @@ cd "$SRC_DIR"
   --target-os=android \
   --arch=aarch64 \
   --cpu=armv8-a \
+  --enable-cross-compile \
+  --cross-prefix=aarch64-linux-android- \
+  --sysroot="$TOOLCHAIN/sysroot" \
   --enable-shared \
   --disable-static \
-  --enable-cross-compile \
-  --sysroot="$TOOLCHAIN/sysroot" \
+  --enable-pic \
   "${COMMON_CONFIG[@]}"
 
-make -j$(nproc)
+make -j"$(getconf _NPROCESSORS_ONLN)"
 make install
 make distclean
