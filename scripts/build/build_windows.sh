@@ -1,42 +1,54 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ------------------------------------------------------------------------------
-# Environment
-# ------------------------------------------------------------------------------
 source "$(dirname "$0")/env.sh"
 
-PLATFORM=windows
-ARCH=x64
+ARCH="${1:?Usage: build_windows.sh <x64|x86>}"
 
+PLATFORM=windows
 TARGET_DIR="$PLATFORM/$ARCH"
 PREFIX="$OUT_DIR/$TARGET_DIR"
 
 # ------------------------------------------------------------------------------
-# Sanity check
+# Arch mapping
 # ------------------------------------------------------------------------------
-echo "[Sanity Check] toolchain"
-
-command -v x86_64-w64-mingw32-gcc >/dev/null
-command -v x86_64-w64-mingw32-ar >/dev/null
-command -v x86_64-w64-mingw32-nm >/dev/null
-command -v x86_64-w64-mingw32-ranlib >/dev/null
-command -v make >/dev/null
-command -v pkg-config >/dev/null
-
-echo "[Sanity Check] toolchain OK"
-
-# ------------------------------------------------------------------------------
-# Export binutils explicitly
-# ------------------------------------------------------------------------------
-export CC=x86_64-w64-mingw32-gcc
-export AR=x86_64-w64-mingw32-ar
-export NM="x86_64-w64-mingw32-nm -g"
-export RANLIB=x86_64-w64-mingw32-ranlib
-export STRIP=x86_64-w64-mingw32-strip
+case "$ARCH" in
+  x64)
+    FF_ARCH=x86_64
+    CROSS=x86_64-w64-mingw32
+    TOOLCHAIN_BIN=/mingw64/bin
+    ;;
+  x86)
+    FF_ARCH=x86
+    CROSS=i686-w64-mingw32
+    TOOLCHAIN_BIN=/mingw32/bin
+    ;;
+  *)
+    echo "Unsupported arch: $ARCH"
+    exit 1
+    ;;
+esac
 
 # ------------------------------------------------------------------------------
-# Prepare directories
+# Toolchain setup
+# ------------------------------------------------------------------------------
+export PATH="$TOOLCHAIN_BIN:$PATH"
+export CC="$TOOLCHAIN_BIN/gcc"
+export AR="$TOOLCHAIN_BIN/ar"
+export NM="$TOOLCHAIN_BIN/nm"
+export RANLIB="$TOOLCHAIN_BIN/ranlib"
+export STRIP="$TOOLCHAIN_BIN/strip"
+
+# Verify toolchain availability
+for tool in gcc ar nm ranlib strip; do
+  if ! command -v "$TOOLCHAIN_BIN/$tool" >/dev/null 2>&1; then
+    echo "Error: $tool not found in $TOOLCHAIN_BIN"
+    exit 1
+  fi
+done
+
+# ------------------------------------------------------------------------------
+# Prepare dirs
 # ------------------------------------------------------------------------------
 mkdir -p "$BUILD_DIR/$TARGET_DIR"
 mkdir -p "$PREFIX"
@@ -44,32 +56,25 @@ mkdir -p "$PREFIX"
 cd "$SRC_DIR"
 
 # ------------------------------------------------------------------------------
-# Configure FFmpeg (STATIC ONLY)
+# Configure
 # ------------------------------------------------------------------------------
 ./configure \
   --prefix="$PREFIX" \
   --target-os=mingw32 \
-  --arch=x86_64 \
-  --cross-prefix=x86_64-w64-mingw32- \
+  --arch="$FF_ARCH" \
+  --cross-prefix="${CROSS}-" \
   --disable-shared \
   --enable-static \
   --disable-programs \
   --disable-doc \
   --disable-debug \
-  --pkg-config=pkg-config \
+  --pkg-config=pkgconf \
   --pkg-config-flags="--static" \
-  --extra-cflags="-O3" \
-  --extra-ldflags="-static-libgcc -static-libstdc++" \
   "${COMMON_CONFIG[@]}"
 
 # ------------------------------------------------------------------------------
-# Build & Install
+# Build
 # ------------------------------------------------------------------------------
-make -j"$(nproc)" V=1
+make -j"$(nproc)"
 make install
-
-# ------------------------------------------------------------------------------
-# Cleanup (CI friendly)
-# ------------------------------------------------------------------------------
-cd "$SRC_DIR"
 make clean

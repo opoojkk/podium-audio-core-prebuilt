@@ -9,13 +9,19 @@ on:
     tags:
       - "ffmpeg-*"
 
+# ============================================================
+# Windows (MSYS2 / MinGW)
+# ============================================================
 jobs:
-  # ==============================
-  # Windows (MSYS2 / MINGW64)
-  # ==============================
   build-windows:
-    name: Build FFmpeg (Windows x64)
+    name: Windows (${{ matrix.arch }})
     runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, x86]
+
     defaults:
       run:
         shell: msys2 {0}
@@ -23,10 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSYS2 (MINGW64)
+      - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: ${{ matrix.arch == 'x64' && 'MINGW64' || 'MINGW32' }}
           update: true
           install: >-
             base-devel
@@ -34,75 +40,51 @@ jobs:
             git
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-binutils
+            mingw-w64-i686-gcc
+            mingw-w64-i686-binutils
             mingw-w64-x86_64-pkgconf
+            mingw-w64-i686-pkgconf
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-i686-pkg-config
             mingw-w64-x86_64-yasm
             mingw-w64-x86_64-nasm
+            mingw-w64-i686-yasm
+            mingw-w64-i686-nasm
 
-      - name: Setup Toolchain Aliases
-        run: |
-          cd /mingw64/bin
-          
-          # 创建交叉编译风格的符号链接
-          ln -sf gcc.exe x86_64-w64-mingw32-gcc.exe
-          ln -sf g++.exe x86_64-w64-mingw32-g++.exe
-          ln -sf ar.exe x86_64-w64-mingw32-ar.exe
-          ln -sf nm.exe x86_64-w64-mingw32-nm.exe
-          ln -sf ranlib.exe x86_64-w64-mingw32-ranlib.exe
-          ln -sf strip.exe x86_64-w64-mingw32-strip.exe
-          ln -sf windres.exe x86_64-w64-mingw32-windres.exe
-          
-          # 验证链接成功
-          echo "=== Verifying toolchain aliases ==="
-          x86_64-w64-mingw32-gcc --version | head -n1
-          x86_64-w64-mingw32-ar --version | head -n1
-          echo "Toolchain aliases created successfully"
-
-      - name: Fetch FFmpeg (Windows)
+      - name: Fetch FFmpeg
         run: |
           chmod +x scripts/build/*.sh
           scripts/build/fetch_ffmpeg.sh
 
       - name: Build FFmpeg (Windows)
         run: |
-          set -x
-          
-          # 执行构建
-          scripts/build/build_windows.sh
-      
-          # 诊断输出
-          echo "=== Build output structure ==="
-          ls -la output/windows/x64/ || true
-      
-          echo "=== Library files ==="
-          find output/windows/x64/lib -type f || true
-      
-          echo "=== DLL files ==="
-          find output/windows/x64/bin -name "*.dll" || true
+          scripts/build/build_windows.sh ${{ matrix.arch }}
 
-      - name: Upload Debug Info on Failure
-        if: failure()
+      - name: Package
+        run: |
+          scripts/build/package.sh windows ${{ matrix.arch }}
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-debug
-          path: |
-            ffmpeg-*/config.log
-            ffmpeg-*/ffbuild/config.mak
-
-      - name: Package (Windows)
-        run: scripts/build/package.sh windows x64
-
-      - name: Upload Artifacts (Windows)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-${{ github.ref_name }}-windows-x64
+          name: ffmpeg-${{ github.ref_name }}-windows-${{ matrix.arch }}
           path: output/*.tar.gz
 
-  # ==============================
-  # Android (NDK r25c / arm64-v8a)
-  # ==============================
+# ============================================================
+# Android (NDK r25c)
+# ============================================================
   build-android:
-    name: Build FFmpeg (Android arm64-v8a)
+    name: Android (${{ matrix.arch }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64-v8a
+          - armeabi-v7a
+          - x86_64
+          - x86
 
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +94,7 @@ jobs:
         with:
           ndk-version: r25c
 
-      - name: Fetch FFmpeg (Android)
+      - name: Fetch FFmpeg
         shell: bash
         run: |
           chmod +x scripts/build/*.sh
@@ -120,26 +102,23 @@ jobs:
 
       - name: Build FFmpeg (Android)
         shell: bash
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
-          scripts/build/build_android.sh arm64-v8a
+          scripts/build/build_android.sh ${{ matrix.arch }}
 
-      - name: Package (Android)
+      - name: Package
         shell: bash
         run: |
-          scripts/build/package.sh android arm64-v8a
+          scripts/build/package.sh android ${{ matrix.arch }}
 
-      - name: Upload Artifacts (Android)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-${{ github.ref_name }}-android-arm64-v8a
+          name: ffmpeg-${{ github.ref_name }}-android-${{ matrix.arch }}
           path: output/*.tar.gz
 
-
-  # ==============================
-  # Release (ONLY ONCE)
-  # ==============================
+# ============================================================
+# Release (collect once)
+# ============================================================
   release:
     name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/')

@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 source "$(dirname "$0")/env.sh"
 
+# ------------------------------------------------------------------------------
+# Args
+# ------------------------------------------------------------------------------
+ARCH="${1:?Usage: build_android.sh <arm64-v8a|armeabi-v7a|x86_64|x86>}"
+
 PLATFORM=android
-ARCH=arm64-v8a
 TARGET_DIR="$PLATFORM/$ARCH"
 PREFIX="$OUT_DIR/$TARGET_DIR"
 
-# ---------- Resolve ANDROID_NDK ----------
-ANDROID_NDK="${ANDROID_NDK:-${ANDROID_NDK_HOME:-}}"
-: "${ANDROID_NDK:?ANDROID_NDK not set}"
-
 API=24
 
-# ---------- Resolve NDK toolchain ----------
+# ------------------------------------------------------------------------------
+# Resolve ANDROID_NDK
+# ------------------------------------------------------------------------------
+ANDROID_NDK="${ANDROID_NDK:-${ANDROID_NDK_HOME:-}}"
+: "${ANDROID_NDK:?ANDROID_NDK or ANDROID_NDK_HOME not set}"
+
 PREBUILT_DIR="$ANDROID_NDK/toolchains/llvm/prebuilt"
 
 if [ -d "$PREBUILT_DIR/linux-x86_64" ]; then
@@ -22,62 +27,88 @@ if [ -d "$PREBUILT_DIR/linux-x86_64" ]; then
 elif [ -d "$PREBUILT_DIR/linux-x64" ]; then
   HOST_TAG="linux-x64"
 else
-  echo "No supported Linux toolchain found in $PREBUILT_DIR"
-  ls "$PREBUILT_DIR"
+  echo "Error: Unsupported NDK host, expected linux-x86_64 or linux-x64"
   exit 1
 fi
 
 TOOLCHAIN="$PREBUILT_DIR/$HOST_TAG"
 SYSROOT="$TOOLCHAIN/sysroot"
 
-echo "Using NDK toolchain: $TOOLCHAIN"
-
-# ---------- Force NDK clang wrapper ----------
 export PATH="$TOOLCHAIN/bin:$PATH"
-export CC="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
-export CXX="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang++"
-export AR="$TOOLCHAIN/bin/llvm-ar"
-export NM="$TOOLCHAIN/bin/llvm-nm"
-export STRIP="$TOOLCHAIN/bin/llvm-strip"
 
-# ---------- Build dirs ----------
+# ------------------------------------------------------------------------------
+# Arch mapping
+# ------------------------------------------------------------------------------
+EXTRA_CFLAGS=""
+EXTRA_LDFLAGS=""
+
+case "$ARCH" in
+  arm64-v8a)
+    FF_ARCH=aarch64
+    TRIPLE=aarch64-linux-android
+    ;;
+  armeabi-v7a)
+    FF_ARCH=arm
+    TRIPLE=armv7a-linux-androideabi
+    EXTRA_CFLAGS="-march=armv7-a -mfloat-abi=softfp -mfpu=neon"
+    ;;
+  x86_64)
+    FF_ARCH=x86_64
+    TRIPLE=x86_64-linux-android
+    ;;
+  x86)
+    FF_ARCH=x86
+    TRIPLE=i686-linux-android
+    ;;
+  *)
+    echo "Error: Unsupported arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+export CC="$TOOLCHAIN/bin/${TRIPLE}${API}-clang"
+export CXX="$TOOLCHAIN/bin/${TRIPLE}${API}-clang++"
+export AR=llvm-ar
+export NM=llvm-nm
+export STRIP=llvm-strip
+
+# Verify toolchain binaries exist
+if [ ! -x "$CC" ]; then
+  echo "Error: Compiler not found: $CC"
+  exit 1
+fi
+
+# ------------------------------------------------------------------------------
+# Build dirs
+# ------------------------------------------------------------------------------
 mkdir -p "$BUILD_DIR/$TARGET_DIR"
 mkdir -p "$PREFIX"
 
 cd "$SRC_DIR"
 
-# ---------- Configure (FINAL correct form) ----------
+# ------------------------------------------------------------------------------
+# Configure
+# ------------------------------------------------------------------------------
 ./configure \
   --prefix="$PREFIX" \
   --target-os=android \
-  --arch=aarch64 \
+  --arch="$FF_ARCH" \
   --enable-cross-compile \
+  --sysroot="$SYSROOT" \
   --cc="$CC" \
   --cxx="$CXX" \
-  --sysroot="$SYSROOT" \
-  --extra-cflags="--sysroot=$SYSROOT" \
-  --extra-ldflags="--sysroot=$SYSROOT" \
+  --extra-cflags="--sysroot=$SYSROOT $EXTRA_CFLAGS" \
+  --extra-ldflags="--sysroot=$SYSROOT $EXTRA_LDFLAGS" \
   --enable-shared \
   --disable-static \
   --enable-pic \
-  --disable-stripping \
-  "${COMMON_CONFIG[@]}" \
-|| {
-  echo ""
-  echo "========== FFmpeg configure failed =========="
-  echo "CC: $CC"
-  echo "SYSROOT: $SYSROOT"
-  echo ""
-  echo "========== ffbuild/config.log (errors) =========="
-  grep -nE "Exec format error|error:|fatal|clang:|ld(\.lld)?:|cannot open|cannot find" ffbuild/config.log || true
-  echo ""
-  echo "========== ffbuild/config.log (last 200 lines) =========="
-  tail -n 200 ffbuild/config.log
-  echo "============================================"
-  exit 1
-}
+  --disable-programs \
+  --disable-doc \
+  "${COMMON_CONFIG[@]}"
 
-# ---------- Build ----------
-make -j"$(getconf _NPROCESSORS_ONLN)"
+# ------------------------------------------------------------------------------
+# Build
+# ------------------------------------------------------------------------------
+make -j"$(nproc)"
 make install
 make distclean
