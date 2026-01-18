@@ -18,59 +18,81 @@ jobs:
         shell: msys2 {0}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup MSYS2 (MINGW64)
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: >-
-          base-devel
-          make
-          git
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-binutils
-          mingw-w64-x86_64-pkgconf
-          mingw-w64-x86_64-yasm
-          mingw-w64-x86_64-nasm
+      - name: Setup MSYS2 (MINGW64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            make
+            git
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-nasm
 
-    - name: Setup Toolchain Aliases
-      run: |
-        cd /mingw64/bin
-        
-        # 创建交叉编译风格的符号链接
-        ln -sf gcc.exe x86_64-w64-mingw32-gcc.exe
-        ln -sf g++.exe x86_64-w64-mingw32-g++.exe
-        ln -sf ar.exe x86_64-w64-mingw32-ar.exe
-        ln -sf nm.exe x86_64-w64-mingw32-nm.exe
-        ln -sf ranlib.exe x86_64-w64-mingw32-ranlib.exe
-        ln -sf strip.exe x86_64-w64-mingw32-strip.exe
-        ln -sf windres.exe x86_64-w64-mingw32-windres.exe
-        
-        # 验证链接成功
-        echo "=== Verifying toolchain aliases ==="
-        x86_64-w64-mingw32-gcc --version | head -n1
-        x86_64-w64-mingw32-ar --version | head -n1
-        echo "Toolchain aliases created successfully"
+      - name: Setup Toolchain Aliases
+        run: |
+          cd /mingw64/bin
+          
+          # 创建交叉编译风格的符号链接
+          ln -sf gcc.exe x86_64-w64-mingw32-gcc.exe
+          ln -sf g++.exe x86_64-w64-mingw32-g++.exe
+          ln -sf ar.exe x86_64-w64-mingw32-ar.exe
+          ln -sf nm.exe x86_64-w64-mingw32-nm.exe
+          ln -sf ranlib.exe x86_64-w64-mingw32-ranlib.exe
+          ln -sf strip.exe x86_64-w64-mingw32-strip.exe
+          ln -sf windres.exe x86_64-w64-mingw32-windres.exe
+          
+          # 验证链接成功
+          echo "=== Verifying toolchain aliases ==="
+          x86_64-w64-mingw32-gcc --version | head -n1
+          x86_64-w64-mingw32-ar --version | head -n1
+          echo "Toolchain aliases created successfully"
 
-    - name: Fetch FFmpeg (Windows)
-      run: |
-        chmod +x scripts/build/*.sh
-        scripts/build/fetch_ffmpeg.sh
+      - name: Fetch FFmpeg (Windows)
+        run: |
+          chmod +x scripts/build/*.sh
+          scripts/build/fetch_ffmpeg.sh
 
-    - name: Build FFmpeg (Windows)
-      run: scripts/build/build_windows.sh
+      - name: Build FFmpeg (Windows)
+        run: |
+          set -x
+          
+          # 执行构建
+          scripts/build/build_windows.sh
+      
+          # 诊断输出
+          echo "=== Build output structure ==="
+          ls -la output/windows/x64/ || true
+      
+          echo "=== Library files ==="
+          find output/windows/x64/lib -type f || true
+      
+          echo "=== DLL files ==="
+          find output/windows/x64/bin -name "*.dll" || true
 
-    - name: Package (Windows)
-      run: scripts/build/package.sh windows x64
+      - name: Upload Debug Info on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-debug
+          path: |
+            ffmpeg-*/config.log
+            ffmpeg-*/ffbuild/config.mak
 
-    - name: Upload Artifacts (Windows)
-      uses: actions/upload-artifact@v4
-      with:
-        name: ffmpeg-${{ github.ref_name }}-windows-x64
-        path: output/*.tar.gz
+      - name: Package (Windows)
+        run: scripts/build/package.sh windows x64
 
+      - name: Upload Artifacts (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ github.ref_name }}-windows-x64
+          path: output/*.tar.gz
 
   # ==============================
   # Android (NDK r25c / arm64-v8a)

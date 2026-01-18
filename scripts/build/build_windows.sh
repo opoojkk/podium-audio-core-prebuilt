@@ -27,7 +27,7 @@ command -v pkg-config >/dev/null
 echo "[Sanity Check] toolchain OK"
 
 # ------------------------------------------------------------------------------
-# Export binutils explicitly (防止 PATH 异常)
+# Export binutils explicitly
 # ------------------------------------------------------------------------------
 export CC=x86_64-w64-mingw32-gcc
 export AR=x86_64-w64-mingw32-ar
@@ -56,15 +56,37 @@ cd "$SRC_DIR"
   --disable-programs \
   --disable-doc \
   --disable-debug \
+  --pkg-config=pkg-config \
+  --pkg-config-flags="--static" \
+  --extra-cflags="-O3" \
+  --extra-ldflags="-static-libgcc -static-libstdc++" \
   "${COMMON_CONFIG[@]}"
 
 # ------------------------------------------------------------------------------
 # Build & Install
 # ------------------------------------------------------------------------------
-make -j"$(getconf _NPROCESSORS_ONLN)"
+make -j"$(nproc)" V=1  # V=1 显示详细编译信息,便于调试
 make install
+
+# ------------------------------------------------------------------------------
+# 修复 MinGW 导入库命名 (如果需要 .lib 格式)
+# ------------------------------------------------------------------------------
+if [ -d "$PREFIX/lib" ]; then
+  cd "$PREFIX/lib"
+  
+  # 为 .dll.a 创建 .lib 符号链接(可选,用于兼容性)
+  for f in lib*.dll.a; do
+    if [ -f "$f" ]; then
+      base="${f%.dll.a}"           # libavformat.dll.a -> libavformat
+      name="${base#lib}"            # libavformat -> avformat
+      ln -sf "$f" "${name}.lib"    # 创建 avformat.lib -> libavformat.dll.a
+      echo "Created link: ${name}.lib -> $f"
+    fi
+  done
+fi
 
 # ------------------------------------------------------------------------------
 # Cleanup (CI friendly)
 # ------------------------------------------------------------------------------
+cd "$SRC_DIR"
 make clean
