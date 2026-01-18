@@ -23,4 +23,6 @@ COMMON_CONFIG=(
   --enable-avcodec
   --enable-avutil
   --enable-swresample
+  --disable-vulkan
+  --disable-hwaccels
 )

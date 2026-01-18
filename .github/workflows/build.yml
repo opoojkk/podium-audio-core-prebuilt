@@ -91,8 +91,16 @@ jobs:
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
+        id: setup-ndk
         with:
           ndk-version: r25c
+          add-to-path: true
+
+      - name: Verify NDK Version
+        shell: bash
+        run: |
+          echo "NDK Path: $ANDROID_NDK_HOME"
+          cat $ANDROID_NDK_HOME/source.properties || echo "No source.properties found"
 
       - name: Fetch FFmpeg
         shell: bash

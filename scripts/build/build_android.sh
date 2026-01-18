@@ -18,7 +18,20 @@ API=24
 # Resolve ANDROID_NDK
 # ------------------------------------------------------------------------------
 ANDROID_NDK="${ANDROID_NDK:-${ANDROID_NDK_HOME:-}}"
-: "${ANDROID_NDK:?ANDROID_NDK or ANDROID_NDK_HOME not set}"
+
+if [ -z "$ANDROID_NDK" ]; then
+  echo "Error: ANDROID_NDK or ANDROID_NDK_HOME must be set"
+  echo "Available environment variables:"
+  env | grep -i ndk || echo "  (none found)"
+  exit 1
+fi
+
+if [ ! -d "$ANDROID_NDK" ]; then
+  echo "Error: NDK directory not found: $ANDROID_NDK"
+  exit 1
+fi
+
+echo "Using NDK: $ANDROID_NDK"
 
 PREBUILT_DIR="$ANDROID_NDK/toolchains/llvm/prebuilt"
 
@@ -68,9 +81,10 @@ esac
 
 export CC="$TOOLCHAIN/bin/${TRIPLE}${API}-clang"
 export CXX="$TOOLCHAIN/bin/${TRIPLE}${API}-clang++"
-export AR=llvm-ar
-export NM=llvm-nm
-export STRIP=llvm-strip
+export AR="$TOOLCHAIN/bin/llvm-ar"
+export NM="$TOOLCHAIN/bin/llvm-nm"
+export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
+export STRIP="$TOOLCHAIN/bin/llvm-strip"
 
 # Verify toolchain binaries exist
 if [ ! -x "$CC" ]; then
