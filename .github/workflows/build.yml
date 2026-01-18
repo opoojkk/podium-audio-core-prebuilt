@@ -56,6 +56,25 @@ jobs:
           chmod +x scripts/build/*.sh
           scripts/build/fetch_ffmpeg.sh
 
+      - name: Setup Toolchain Links
+        run: |
+          # Create symlinks or copies for cross-prefix tools
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            cd /mingw64/bin
+            for tool in gcc g++ ar nm ranlib strip ld windres as; do
+              if [ ! -e "x86_64-w64-mingw32-$tool" ] && [ -e "$tool.exe" ]; then
+                cp "$tool.exe" "x86_64-w64-mingw32-$tool.exe" || true
+              fi
+            done
+          else
+            cd /mingw32/bin
+            for tool in gcc g++ ar nm ranlib strip ld windres as; do
+              if [ ! -e "i686-w64-mingw32-$tool" ] && [ -e "$tool.exe" ]; then
+                cp "$tool.exe" "i686-w64-mingw32-$tool.exe" || true
+              fi
+            done
+          fi
+
       - name: Build FFmpeg (Windows)
         run: |
           scripts/build/build_windows.sh ${{ matrix.arch }}

@@ -34,10 +34,14 @@ esac
 # ------------------------------------------------------------------------------
 export PATH="$TOOLCHAIN_BIN:$PATH"
 export CC="$TOOLCHAIN_BIN/gcc"
+export CXX="$TOOLCHAIN_BIN/g++"
 export AR="$TOOLCHAIN_BIN/ar"
 export NM="$TOOLCHAIN_BIN/nm"
 export RANLIB="$TOOLCHAIN_BIN/ranlib"
 export STRIP="$TOOLCHAIN_BIN/strip"
+export LD="$TOOLCHAIN_BIN/ld"
+export WINDRES="$TOOLCHAIN_BIN/windres"
+export AS="$TOOLCHAIN_BIN/as"
 
 # Verify toolchain availability
 for tool in gcc ar nm ranlib strip; do
@@ -63,6 +67,7 @@ cd "$SRC_DIR"
   --target-os=mingw32 \
   --arch="$FF_ARCH" \
   --cross-prefix="${CROSS}-" \
+  --enable-cross-compile \
   --disable-shared \
   --enable-static \
   --disable-programs \
