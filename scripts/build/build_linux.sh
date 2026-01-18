@@ -18,6 +18,7 @@ PREFIX="$OUT_DIR/$TARGET_DIR"
 EXTRA_CFLAGS=""
 EXTRA_LDFLAGS=""
 CROSS_PREFIX=""
+DISABLE_ASM=""
 
 case "$ARCH" in
   x86_64)
@@ -29,12 +30,16 @@ case "$ARCH" in
     FF_ARCH=aarch64
     CROSS_PREFIX="aarch64-linux-gnu-"
     EXTRA_CFLAGS="-march=armv8-a"
+    # Disable assembly for cross-compilation to avoid toolchain issues
+    DISABLE_ASM="--disable-asm"
     ;;
   armv7)
     # ARM 32-bit with NEON
     FF_ARCH=arm
     CROSS_PREFIX="arm-linux-gnueabihf-"
     EXTRA_CFLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard"
+    # Disable assembly for cross-compilation to avoid toolchain issues
+    DISABLE_ASM="--disable-asm"
     ;;
   i686)
     # x86 32-bit
@@ -102,6 +107,7 @@ cd "$SRC_DIR"
   --ranlib="$RANLIB" \
   --strip="$STRIP" \
   $ENABLE_CROSS \
+  $DISABLE_ASM \
   --extra-cflags="$EXTRA_CFLAGS" \
   --extra-ldflags="$EXTRA_LDFLAGS" \
   --enable-shared \
@@ -117,4 +123,4 @@ cd "$SRC_DIR"
 # ------------------------------------------------------------------------------
 make -j"$(nproc)"
 make install
-make distclean
+make clean

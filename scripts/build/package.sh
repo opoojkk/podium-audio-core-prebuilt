@@ -18,4 +18,11 @@ find . -type d -name "include" | while read -r include_path; do
     "$dir_to_package"
 done
 
-sha256sum *.tar.gz > checksums.txt
+# Generate checksums (use shasum on macOS, sha256sum on Linux)
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum *.tar.gz > checksums.txt
+elif command -v shasum >/dev/null 2>&1; then
+  shasum -a 256 *.tar.gz > checksums.txt
+else
+  echo "Warning: No SHA256 utility found, skipping checksums"
+fi

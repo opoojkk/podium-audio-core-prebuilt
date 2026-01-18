@@ -118,4 +118,4 @@ cd "$SRC_DIR"
 # ------------------------------------------------------------------------------
 make -j"$(sysctl -n hw.ncpu)"
 make install
-make distclean
+make clean
