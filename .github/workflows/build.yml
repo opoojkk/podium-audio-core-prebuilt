@@ -6,13 +6,146 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "*"
+    branches:
+      - master
+
+jobs:
+# ============================================================
+# iOS (Xcode)
+# ============================================================
+  build-ios:
+    name: iOS (${{ matrix.arch }})
+    runs-on: macos-14  # Apple Silicon runner with Xcode 15+
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64                # Physical devices
+          - arm64-simulator      # Simulator on Apple Silicon
+          - x86_64-simulator     # Simulator on Intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch FFmpeg
+        shell: bash
+        run: |
+          chmod +x scripts/build/*.sh
+          scripts/build/fetch_ffmpeg.sh
+
+      - name: Build FFmpeg (iOS)
+        shell: bash
+        run: |
+          scripts/build/build_ios.sh ${{ matrix.arch }}
+
+      - name: Package
+        shell: bash
+        run: |
+          scripts/build/package.sh ios ${{ matrix.arch }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-ios-${{ matrix.arch }}
+          path: output/*.tar.gz
+
+# ============================================================
+# macOS (Xcode)
+# ============================================================
+  build-macos:
+    name: macOS (${{ matrix.arch }})
+    runs-on: macos-14  # Apple Silicon runner
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64      # Apple Silicon (M1/M2/M3)
+          - x86_64     # Intel Mac
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch FFmpeg
+        shell: bash
+        run: |
+          chmod +x scripts/build/*.sh
+          scripts/build/fetch_ffmpeg.sh
+
+      - name: Build FFmpeg (macOS)
+        shell: bash
+        run: |
+          scripts/build/build_macos.sh ${{ matrix.arch }}
+
+      - name: Package
+        shell: bash
+        run: |
+          scripts/build/package.sh macos ${{ matrix.arch }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-macos-${{ matrix.arch }}
+          path: output/*.tar.gz
+
+# ============================================================
+# Linux (Ubuntu)
+# ============================================================
+  build-linux:
+    name: Linux (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64
+          - aarch64
+          - armv7
+          - i686
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Cross-Compilation Toolchains
+        if: matrix.arch != 'x86_64'
+        shell: bash
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          elif [ "${{ matrix.arch }}" = "armv7" ]; then
+            sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+          elif [ "${{ matrix.arch }}" = "i686" ]; then
+            sudo apt-get install -y gcc-multilib g++-multilib
+          fi
+
+      - name: Fetch FFmpeg
+        shell: bash
+        run: |
+          chmod +x scripts/build/*.sh
+          scripts/build/fetch_ffmpeg.sh
+
+      - name: Build FFmpeg (Linux)
+        shell: bash
+        run: |
+          scripts/build/build_linux.sh ${{ matrix.arch }}
+
+      - name: Package
+        shell: bash
+        run: |
+          scripts/build/package.sh linux ${{ matrix.arch }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-linux-${{ matrix.arch }}
+          path: output/*.tar.gz
 
 # ============================================================
 # Windows (MSYS2 / MinGW)
 # ============================================================
-jobs:
   build-windows:
     name: Windows (${{ matrix.arch }})
     runs-on: windows-latest
@@ -86,7 +219,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-${{ github.ref_name }}-windows-${{ matrix.arch }}
+          name: ffmpeg-windows-${{ matrix.arch }}
           path: output/*.tar.gz
 
 # ============================================================
@@ -140,7 +273,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-${{ github.ref_name }}-android-${{ matrix.arch }}
+          name: ffmpeg-android-${{ matrix.arch }}
           path: output/*.tar.gz
 
 # ============================================================
@@ -148,8 +281,11 @@ jobs:
 # ============================================================
   release:
     name: Create GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs:
+      - build-ios
+      - build-macos
+      - build-linux
       - build-windows
       - build-android
     runs-on: ubuntu-latest
@@ -171,7 +307,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ github.ref_name }}
+          tag_name: build-${{ github.run_number }}
+          name: FFmpeg Build ${{ github.run_number }}
           files: |
             artifacts/**/*.tar.gz
             artifacts/checksums.txt
