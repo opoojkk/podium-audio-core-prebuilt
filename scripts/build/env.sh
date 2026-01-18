@@ -3,7 +3,8 @@ set -e
 
 # ===== FFmpeg version =====
 FFMPEG_VERSION=6.1
-FFMPEG_GIT=https://git.ffmpeg.org/ffmpeg.git
+# Use GitHub mirror for better reliability
+FFMPEG_GIT=https://github.com/FFmpeg/FFmpeg.git
 
 # ===== Project root =====
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)

@@ -72,6 +72,8 @@ case "$ARCH" in
   x86)
     FF_ARCH=x86
     TRIPLE=i686-linux-android
+    EXTRA_CFLAGS="-fPIC -DPIC"
+    EXTRA_LDFLAGS="-fPIC"
     ;;
   *)
     echo "Error: Unsupported arch: $ARCH"
@@ -111,6 +113,10 @@ cd "$SRC_DIR"
   --sysroot="$SYSROOT" \
   --cc="$CC" \
   --cxx="$CXX" \
+  --ar="$AR" \
+  --nm="$NM" \
+  --ranlib="$RANLIB" \
+  --strip="$STRIP" \
   --extra-cflags="--sysroot=$SYSROOT $EXTRA_CFLAGS" \
   --extra-ldflags="--sysroot=$SYSROOT $EXTRA_LDFLAGS" \
   --enable-shared \
