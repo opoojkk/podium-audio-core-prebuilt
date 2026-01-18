@@ -54,7 +54,6 @@ export PATH="$TOOLCHAIN/bin:$PATH"
 # ------------------------------------------------------------------------------
 EXTRA_CFLAGS=""
 EXTRA_LDFLAGS=""
-EXTRA_ASFLAGS=""
 
 case "$ARCH" in
   arm64-v8a)
@@ -69,14 +68,12 @@ case "$ARCH" in
   x86_64)
     FF_ARCH=x86_64
     TRIPLE=x86_64-linux-android
-    EXTRA_ASFLAGS="-DPIC"
     ;;
   x86)
     FF_ARCH=x86
     TRIPLE=i686-linux-android
     EXTRA_CFLAGS="-fPIC -DPIC"
     EXTRA_LDFLAGS="-fPIC"
-    EXTRA_ASFLAGS="-DPIC"
     # FFmpeg 7.0+ has fixed x86 PIC assembly issues
     ;;
   *)
@@ -123,7 +120,6 @@ cd "$SRC_DIR"
   --strip="$STRIP" \
   --extra-cflags="--sysroot=$SYSROOT $EXTRA_CFLAGS" \
   --extra-ldflags="--sysroot=$SYSROOT $EXTRA_LDFLAGS" \
-  --extra-asflags="$EXTRA_ASFLAGS" \
   --enable-shared \
   --disable-static \
   --enable-pic \
