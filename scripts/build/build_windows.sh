@@ -44,15 +44,15 @@ mkdir -p "$PREFIX"
 cd "$SRC_DIR"
 
 # ------------------------------------------------------------------------------
-# Configure FFmpeg
+# Configure FFmpeg (STATIC ONLY)
 # ------------------------------------------------------------------------------
 ./configure \
   --prefix="$PREFIX" \
   --target-os=mingw32 \
   --arch=x86_64 \
   --cross-prefix=x86_64-w64-mingw32- \
-  --enable-shared \
-  --disable-static \
+  --disable-shared \
+  --enable-static \
   --disable-programs \
   --disable-doc \
   --disable-debug \
@@ -65,25 +65,8 @@ cd "$SRC_DIR"
 # ------------------------------------------------------------------------------
 # Build & Install
 # ------------------------------------------------------------------------------
-make -j"$(nproc)" V=1  # V=1 显示详细编译信息,便于调试
+make -j"$(nproc)" V=1
 make install
-
-# ------------------------------------------------------------------------------
-# 修复 MinGW 导入库命名 (如果需要 .lib 格式)
-# ------------------------------------------------------------------------------
-if [ -d "$PREFIX/lib" ]; then
-  cd "$PREFIX/lib"
-  
-  # 为 .dll.a 创建 .lib 符号链接(可选,用于兼容性)
-  for f in lib*.dll.a; do
-    if [ -f "$f" ]; then
-      base="${f%.dll.a}"           # libavformat.dll.a -> libavformat
-      name="${base#lib}"            # libavformat -> avformat
-      ln -sf "$f" "${name}.lib"    # 创建 avformat.lib -> libavformat.dll.a
-      echo "Created link: ${name}.lib -> $f"
-    fi
-  done
-fi
 
 # ------------------------------------------------------------------------------
 # Cleanup (CI friendly)
