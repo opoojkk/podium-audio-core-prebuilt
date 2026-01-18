@@ -54,6 +54,7 @@ export PATH="$TOOLCHAIN/bin:$PATH"
 # ------------------------------------------------------------------------------
 EXTRA_CFLAGS=""
 EXTRA_LDFLAGS=""
+DISABLE_ASM=""
 
 case "$ARCH" in
   arm64-v8a)
@@ -74,7 +75,9 @@ case "$ARCH" in
     TRIPLE=i686-linux-android
     EXTRA_CFLAGS="-fPIC -DPIC"
     EXTRA_LDFLAGS="-fPIC"
-    # FFmpeg 7.0+ has fixed x86 PIC assembly issues
+    # x86 assembly has known PIC issues in shared libraries
+    # Disable assembly, use pure C implementation for compatibility
+    DISABLE_ASM="--disable-asm"
     ;;
   *)
     echo "Error: Unsupported arch: $ARCH"
@@ -125,6 +128,7 @@ cd "$SRC_DIR"
   --enable-pic \
   --disable-programs \
   --disable-doc \
+  $DISABLE_ASM \
   "${COMMON_CONFIG[@]}"
 
 # ------------------------------------------------------------------------------
