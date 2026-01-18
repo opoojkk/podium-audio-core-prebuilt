@@ -1,5 +1,8 @@
 name: Build Podium Audio Core Prebuilt
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
