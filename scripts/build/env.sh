@@ -2,7 +2,7 @@
 set -e
 
 # ===== FFmpeg version =====
-FFMPEG_VERSION=6.1
+FFMPEG_VERSION=7.0
 # Use GitHub mirror for better reliability
 FFMPEG_GIT=https://github.com/FFmpeg/FFmpeg.git
 
