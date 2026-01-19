@@ -28,6 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install NASM
+        shell: bash
+        run: |
+          brew install nasm
+          # Ensure NASM is in PATH
+          echo "$(brew --prefix nasm)/bin" >> $GITHUB_PATH
+          echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
       - name: Fetch FFmpeg
         shell: bash
         run: |
@@ -66,6 +74,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install NASM
+        shell: bash
+        run: |
+          brew install nasm
+          # Ensure NASM is in PATH
+          echo "$(brew --prefix nasm)/bin" >> $GITHUB_PATH
+          echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
       - name: Fetch FFmpeg
         shell: bash

@@ -26,4 +26,6 @@ COMMON_CONFIG=(
   --enable-swresample
   --disable-vulkan
   --disable-hwaccels
+  --disable-videotoolbox
+  --disable-audiotoolbox
 )
