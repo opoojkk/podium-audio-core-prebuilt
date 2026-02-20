@@ -84,6 +84,20 @@ export CXXFLAGS="$COMMON_FLAGS $EXTRA_CFLAGS"
 export LDFLAGS="$COMMON_FLAGS $EXTRA_CFLAGS"
 
 # ------------------------------------------------------------------------------
+# Build OpenSSL for iOS (required for HTTPS/TLS protocol in FFmpeg)
+# ------------------------------------------------------------------------------
+OPENSSL_ARCH_PREFIX="$OPENSSL_OUT_DIR/ios/$ARCH"
+if [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libssl.a" ] || [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libcrypto.a" ]; then
+  echo "OpenSSL not found for iOS $ARCH, building..."
+  "$(dirname "$0")/build_openssl_ios.sh" "$ARCH"
+fi
+
+if [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libssl.a" ] || [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libcrypto.a" ]; then
+  echo "Error: OpenSSL build failed or artifacts missing at $OPENSSL_ARCH_PREFIX"
+  exit 1
+fi
+
+# ------------------------------------------------------------------------------
 # Prepare dirs
 # ------------------------------------------------------------------------------
 mkdir -p "$BUILD_DIR/$TARGET_DIR"
@@ -105,6 +119,9 @@ cd "$SRC_DIR"
   --ranlib="$RANLIB" \
   --strip="$STRIP" \
   --enable-cross-compile \
+  --enable-openssl \
+  --extra-cflags="-I$OPENSSL_ARCH_PREFIX/include $EXTRA_CFLAGS" \
+  --extra-ldflags="-L$OPENSSL_ARCH_PREFIX/lib -lssl -lcrypto" \
   --disable-shared \
   --enable-static \
   --enable-pic \

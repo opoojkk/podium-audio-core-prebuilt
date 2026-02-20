@@ -22,27 +22,21 @@ DISABLE_ASM=""
 
 case "$ARCH" in
   x86_64)
-    # Native x86_64 build
     FF_ARCH=x86_64
     ;;
   aarch64)
-    # ARM 64-bit (cross-compile if needed)
     FF_ARCH=aarch64
     CROSS_PREFIX="aarch64-linux-gnu-"
     EXTRA_CFLAGS="-march=armv8-a"
-    # Disable assembly for cross-compilation to avoid toolchain issues
     DISABLE_ASM="--disable-asm"
     ;;
   armv7)
-    # ARM 32-bit with NEON
     FF_ARCH=arm
     CROSS_PREFIX="arm-linux-gnueabihf-"
     EXTRA_CFLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=hard"
-    # Disable assembly for cross-compilation to avoid toolchain issues
     DISABLE_ASM="--disable-asm"
     ;;
   i686)
-    # x86 32-bit
     FF_ARCH=x86
     EXTRA_CFLAGS="-m32"
     EXTRA_LDFLAGS="-m32"
@@ -57,32 +51,47 @@ esac
 # Toolchain setup
 # ------------------------------------------------------------------------------
 if [ -n "$CROSS_PREFIX" ]; then
-  # Cross-compilation
   export CC="${CROSS_PREFIX}gcc"
   export CXX="${CROSS_PREFIX}g++"
   export AR="${CROSS_PREFIX}ar"
   export NM="${CROSS_PREFIX}nm"
   export RANLIB="${CROSS_PREFIX}ranlib"
   export STRIP="${CROSS_PREFIX}strip"
-  
-  # Verify cross toolchain exists
+
   if ! command -v "$CC" >/dev/null 2>&1; then
     echo "Error: Cross toolchain not found: $CC"
-    echo "Install with: sudo apt-get install gcc-${CROSS_PREFIX%-*}"
     exit 1
   fi
-  
+
   ENABLE_CROSS="--enable-cross-compile"
 else
-  # Native compilation
   export CC=gcc
   export CXX=g++
   export AR=ar
   export NM=nm
   export RANLIB=ranlib
   export STRIP=strip
-  
+
   ENABLE_CROSS=""
+fi
+
+# ------------------------------------------------------------------------------
+# Build OpenSSL for Linux (required for HTTPS/TLS protocol in FFmpeg)
+# ------------------------------------------------------------------------------
+OPENSSL_ARCH_PREFIX="$OPENSSL_OUT_DIR/linux/$ARCH"
+if [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libssl.a" ] && [ ! -f "$OPENSSL_ARCH_PREFIX/lib64/libssl.a" ]; then
+  echo "OpenSSL not found for Linux $ARCH, building..."
+  "$(dirname "$0")/build_openssl_linux.sh" "$ARCH"
+fi
+
+if [ -f "$OPENSSL_ARCH_PREFIX/lib/libssl.a" ] && [ -f "$OPENSSL_ARCH_PREFIX/lib/libcrypto.a" ]; then
+  OPENSSL_LIB_DIR="$OPENSSL_ARCH_PREFIX/lib"
+elif [ -f "$OPENSSL_ARCH_PREFIX/lib64/libssl.a" ] && [ -f "$OPENSSL_ARCH_PREFIX/lib64/libcrypto.a" ]; then
+  OPENSSL_LIB_DIR="$OPENSSL_ARCH_PREFIX/lib64"
+else
+  echo "Error: OpenSSL build failed or artifacts missing at $OPENSSL_ARCH_PREFIX"
+  find "$OPENSSL_ARCH_PREFIX" -maxdepth 4 -type f | sort || true
+  exit 1
 fi
 
 # ------------------------------------------------------------------------------
@@ -106,10 +115,11 @@ cd "$SRC_DIR"
   --nm="$NM" \
   --ranlib="$RANLIB" \
   --strip="$STRIP" \
+  --enable-openssl \
   $ENABLE_CROSS \
   $DISABLE_ASM \
-  --extra-cflags="$EXTRA_CFLAGS" \
-  --extra-ldflags="$EXTRA_LDFLAGS" \
+  --extra-cflags="-I$OPENSSL_ARCH_PREFIX/include $EXTRA_CFLAGS" \
+  --extra-ldflags="-L$OPENSSL_LIB_DIR -lssl -lcrypto $EXTRA_LDFLAGS" \
   --enable-shared \
   --disable-static \
   --enable-pic \
@@ -118,9 +128,6 @@ cd "$SRC_DIR"
   --disable-debug \
   "${COMMON_CONFIG[@]}"
 
-# ------------------------------------------------------------------------------
-# Build
-# ------------------------------------------------------------------------------
 make -j"$(nproc)"
 make install
 make clean

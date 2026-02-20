@@ -68,6 +68,7 @@ cd "$SRC_DIR"
   --arch="$FF_ARCH" \
   --cross-prefix="${CROSS}-" \
   --enable-cross-compile \
+  --enable-openssl \
   --disable-shared \
   --enable-static \
   --disable-programs \

@@ -75,8 +75,7 @@ case "$ARCH" in
     TRIPLE=i686-linux-android
     EXTRA_CFLAGS="-fPIC -DPIC"
     EXTRA_LDFLAGS="-fPIC"
-    # x86 assembly has known PIC issues in shared libraries
-    # Disable assembly, use pure C implementation for compatibility
+    # x86 assembly has known PIC issues in shared libraries.
     DISABLE_ASM="--disable-asm"
     ;;
   *)
@@ -97,6 +96,22 @@ if [ ! -x "$CC" ]; then
   echo "Error: Compiler not found: $CC"
   exit 1
 fi
+
+# ------------------------------------------------------------------------------
+# Build OpenSSL for Android (required for HTTPS/TLS protocol in FFmpeg)
+# ------------------------------------------------------------------------------
+OPENSSL_ARCH_PREFIX="$OPENSSL_OUT_DIR/android/$ARCH"
+if [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libssl.a" ] || [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libcrypto.a" ]; then
+  echo "OpenSSL not found for $ARCH, building..."
+  "$(dirname "$0")/build_openssl_android.sh" "$ARCH"
+fi
+
+if [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libssl.a" ] || [ ! -f "$OPENSSL_ARCH_PREFIX/lib/libcrypto.a" ]; then
+  echo "Error: OpenSSL build failed or artifacts missing at $OPENSSL_ARCH_PREFIX"
+  exit 1
+fi
+
+echo "Using OpenSSL: $OPENSSL_ARCH_PREFIX"
 
 # ------------------------------------------------------------------------------
 # Build dirs
@@ -121,8 +136,9 @@ cd "$SRC_DIR"
   --nm="$NM" \
   --ranlib="$RANLIB" \
   --strip="$STRIP" \
-  --extra-cflags="--sysroot=$SYSROOT $EXTRA_CFLAGS" \
-  --extra-ldflags="--sysroot=$SYSROOT $EXTRA_LDFLAGS" \
+  --enable-openssl \
+  --extra-cflags="--sysroot=$SYSROOT -I$OPENSSL_ARCH_PREFIX/include $EXTRA_CFLAGS" \
+  --extra-ldflags="--sysroot=$SYSROOT -L$OPENSSL_ARCH_PREFIX/lib -lssl -lcrypto -lz $EXTRA_LDFLAGS" \
   --enable-shared \
   --disable-static \
   --enable-pic \
